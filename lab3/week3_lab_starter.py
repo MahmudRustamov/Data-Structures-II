@@ -25,28 +25,83 @@ class BST:
         self.root = None
 
     def insert(self, key):
-        """TODO A1: iterative insertion (no recursion). Ignore duplicates."""
-        raise NotImplementedError
+        new_node = BSTNode(key)
+
+        if self.root is None:
+            self.root = new_node
+            return
+
+        current = self.root
+
+        while True:
+            if key < current.key:
+                if current.left is None:
+                    current.left = new_node
+                    return
+                current = current.left
+
+            elif key > current.key:
+                if current.right is None:
+                    current.right = new_node
+                    return
+                current = current.right
+
+            else:
+                return
 
     def search(self, key):
-        """TODO A2: iterative search. Return True if key is present."""
-        raise NotImplementedError
+        current = self.root
+
+        while current:
+            if key == current.key:
+                return True
+
+            if key < current.key:
+                current = current.left
+            else:
+                current = current.right
+
+        return False
 
     def height(self):
-        """TODO A3: height in edges (empty tree = -1). Must work for a
-        7,999-level chain, so use an explicit stack or queue, not recursion."""
-        raise NotImplementedError
+        if self.root is None:
+            return -1
+
+        stack = [(self.root, 0)]
+        max_height = 0
+
+        while stack:
+            node, depth = stack.pop()
+            max_height = max(max_height, depth)
+
+            if node.left:
+                stack.append((node.left, depth + 1))
+
+            if node.right:
+                stack.append((node.right, depth + 1))
+
+        return max_height
 
 
 # ======================================================== Part B: rotations
 def rotate_left(x):
-    """TODO B1: rotate left at x and return the new subtree root."""
-    raise NotImplementedError
+    y = x.right
+    t2 = y.left
+
+    y.left = x
+    x.right = t2
+
+    return y
 
 
 def rotate_right(y):
-    """TODO B2: rotate right at y and return the new subtree root."""
-    raise NotImplementedError
+    x = y.left
+    t2 = x.right
+
+    x.right = y
+    y.left = t2
+
+    return x
 
 
 # ======================================================== Part C: AVL tree
@@ -76,53 +131,180 @@ class AVLTree:
         self.rotations = 0
 
     def rotate_left(self, x):
-        """TODO C1: as rotate_left above, plus update heights (lower node first)
-        and add 1 to self.rotations."""
-        raise NotImplementedError
+        y = x.right
+        t2 = y.left
+
+        y.left = x
+        x.right = t2
+
+        update(x)
+        update(y)
+
+        self.rotations += 1
+        return y
 
     def rotate_right(self, y):
-        """TODO C2: mirror of rotate_left."""
-        raise NotImplementedError
+        x = y.left
+        t2 = x.right
+
+        x.right = y
+        y.left = t2
+
+        update(y)
+        update(x)
+
+        self.rotations += 1
+        return x
 
     def rebalance(self, node):
-        """TODO C3: update node's height; if |BF| > 1 apply the LL, LR, RR
-        or RL fix; return the (possibly new) subtree root."""
-        raise NotImplementedError
+        update(node)
+
+        bf = balance(node)
+
+        # LL
+        if bf > 1 and balance(node.left) >= 0:
+            return self.rotate_right(node)
+
+        # LR
+        if bf > 1 and balance(node.left) < 0:
+            node.left = self.rotate_left(node.left)
+            return self.rotate_right(node)
+
+        # RR
+        if bf < -1 and balance(node.right) <= 0:
+            return self.rotate_left(node)
+
+        # RL
+        if bf < -1 and balance(node.right) > 0:
+            node.right = self.rotate_right(node.right)
+            return self.rotate_left(node)
+
+        return node
 
     def insert(self, key):
         self.root = self._insert(self.root, key)
 
     def _insert(self, node, key):
-        """TODO C4: recursive BST insertion that returns self.rebalance(node)."""
-        raise NotImplementedError
+        if node is None:
+            return AVLNode(key)
+
+        if key < node.key:
+            node.left = self._insert(node.left, key)
+
+        elif key > node.key:
+            node.right = self._insert(node.right, key)
+
+        else:
+            return node
+
+        return self.rebalance(node)
 
     def search(self, key):
         cur = self.root
+
         while cur:
             if key == cur.key:
                 return True
+
             cur = cur.left if key < cur.key else cur.right
+
         return False
 
     def height(self):
         return h(self.root)
 
     def is_valid(self):
-        """TODO C5: return True only if (1) BST order holds, (2) every stored
-        height is correct and (3) every balance factor is -1, 0 or +1."""
-        raise NotImplementedError
+        def check(node, low, high):
+            if node is None:
+                return True, -1
 
+            if low is not None and node.key <= low:
+                return False, 0
 
+            if high is not None and node.key >= high:
+                return False, 0
+
+            left_valid, left_height = check(
+                node.left,
+                low,
+                node.key
+            )
+
+            if not left_valid:
+                return False, 0
+
+            right_valid, right_height = check(
+                node.right,
+                node.key,
+                high
+            )
+
+            if not right_valid:
+                return False, 0
+
+            expected_height = 1 + max(
+                left_height,
+                right_height
+            )
+
+            if node.height != expected_height:
+                return False, 0
+
+            bf = left_height - right_height
+
+            if bf < -1 or bf > 1:
+                return False, 0
+
+            return True, expected_height
+
+        valid, _ = check(self.root, None, None)
+        return valid
 # ======================================================== Part D: Red-Black validator
 # A Red-Black tree is given as nested tuples: (key, colour, left, right)
 # where colour is "R" or "B" and an empty child (NIL) is None.
 def is_valid_rb(t):
-    """TODO D3: return (True, black_height) for a valid Red-Black tree and
-    (False, reason) otherwise. Check BST order and properties 2, 4 and 5.
-    black_height counts the black nodes on any root-to-NIL path,
-    including the root and the NIL itself."""
-    raise NotImplementedError
+    if t is None:
+        return True, 1
 
+    if t[1] != "B":
+        return False, "root must be black"
+
+    def check(node, low, high):
+        if node is None:
+            return 1
+
+        key, color, left, right = node
+
+        if color not in ("R", "B"):
+            raise ValueError("invalid colour")
+
+        if low is not None and key <= low:
+            raise ValueError("BST order broken")
+
+        if high is not None and key >= high:
+            raise ValueError("BST order broken")
+
+        if color == "R":
+            if left is not None and left[1] == "R":
+                raise ValueError(f"red node {key} has red child")
+
+            if right is not None and right[1] == "R":
+                raise ValueError(f"red node {key} has red child")
+
+        left_bh = check(left, low, key)
+        right_bh = check(right, key, high)
+
+        if left_bh != right_bh:
+            raise ValueError(f"black-height mismatch at {key}")
+
+        return left_bh + (1 if color == "B" else 0)
+
+    try:
+        black_height = check(t, None, None)
+        return True, black_height
+
+    except ValueError as e:
+        return False, str(e)
 
 # ======================================================== tests (do not edit)
 def run(name, fn):
